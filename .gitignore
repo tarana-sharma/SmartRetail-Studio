@@ -1,0 +1,17 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.env
+
+# Receipts directory (optional if you want to keep generated text receipts local)
+data/receipts/
+
+# OS files
+.DS_Store
+Thumbs.db
+.vscode/
