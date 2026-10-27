@@ -139,6 +139,16 @@ class DatabaseManager:
             cursor.execute("SELECT * FROM products ORDER BY category ASC, name ASC;")
             return [dict(row) for row in cursor.fetchall()]
 
+    def restock_product(self, item_id: str, additional_qty: int) -> int:
+        """Adds incoming units directly to existing stock."""
+        with self.get_connection() as conn:
+            conn.execute("UPDATE products SET stock_qty = stock_qty + ? WHERE item_id = ?;", (additional_qty, item_id))
+            conn.commit()
+            cursor = conn.cursor()
+            cursor.execute("SELECT stock_qty FROM products WHERE item_id = ?;", (item_id,))
+            row = cursor.fetchone()
+            return row["stock_qty"] if row else 0
+
     def delete_product(self, item_id: str) -> None:
         """Safely removes an item and its associated line items to satisfy foreign key rules."""
         with self.get_connection() as conn:

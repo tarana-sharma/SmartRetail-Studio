@@ -312,6 +312,7 @@ class SmartRetailEnterpriseApp:
 
         tb.Button(ribbon, text="Low Stock (< 5)", bootstyle="warning-outline", command=self._filter_low_stock).pack(side=LEFT, padx=3)
         tb.Button(ribbon, text="Reset View", bootstyle="secondary-outline", command=lambda: self._populate_inv_table(self.inventory)).pack(side=LEFT, padx=3)
+        tb.Button(ribbon, text="Restock Selected", bootstyle="success-outline", command=self._restock_selected_product).pack(side=LEFT, padx=3)
         tb.Button(ribbon, text="Delete Selected", bootstyle="danger-outline", command=self._delete_selected_product).pack(side=LEFT, padx=3)
         tb.Button(ribbon, text="Inventory Valuation", bootstyle="primary-outline", command=self._show_inventory_valuation).pack(side=RIGHT)
 
@@ -409,6 +410,68 @@ class SmartRetailEnterpriseApp:
                 messagebox.showinfo("Deleted", f"Product '{name}' successfully removed.")
             except Exception as e:
                 messagebox.showerror("Delete Error", f"Failed to delete product:\n{str(e)}")
+
+
+    def _restock_selected_product(self):
+        sel = self.table.selection()
+        if not sel:
+            messagebox.showwarning("Select Product", "Please select a product row from the table to restock.")
+            return
+
+        item_vals = self.table.item(sel[0], "values")
+        sku = item_vals[0]
+        name = item_vals[1]
+        try:
+            curr_stock = int(item_vals[5])
+        except (ValueError, TypeError):
+            curr_stock = 0
+
+        # Modal dialog for restock
+        modal = tb.Toplevel(self.root)
+        modal.title(f"Quick Restock - {sku}")
+        modal.geometry("420x330")
+        modal.resizable(False, False)
+        modal.transient(self.root)
+        modal.grab_set()
+
+        box = tb.Frame(modal, padding=20)
+        box.pack(fill=BOTH, expand=True)
+
+        tb.Label(box, text="⚡ Quick Restock Intake", font=("Segoe UI", 12, "bold"), foreground="#0B132B").pack(anchor="w")
+        tb.Label(box, text=f"Product: {name}", font=("Segoe UI", 9, "bold"), foreground="#1C2541", wraplength=380).pack(anchor="w", pady=(6, 2))
+        tb.Label(box, text=f"SKU: {sku}  |  Current Warehouse Stock: {curr_stock} units", font=("Segoe UI", 9), foreground="#6C757D").pack(anchor="w", pady=(0, 14))
+
+        tb.Separator(box).pack(fill=X, pady=(0, 14))
+
+        tb.Label(box, text="Enter Additional Units Received:", font=("Segoe UI", 9, "bold")).pack(anchor="w", pady=(0, 4))
+        qty_spin = tb.Spinbox(box, from_=1, to=10000, width=12)
+        qty_spin.pack(anchor="w", pady=(0, 14))
+        qty_spin.set(10)
+
+        # Quick preset buttons
+        preset_bar = tb.Frame(box)
+        preset_bar.pack(fill=X, pady=(0, 16))
+        tb.Label(preset_bar, text="Quick Add:", font=("Segoe UI", 8)).pack(side=LEFT, padx=(0, 6))
+        for preset in [5, 10, 25, 50, 100]:
+            tb.Button(preset_bar, text=f"+{preset}", bootstyle="secondary-outline", 
+                      command=lambda p=preset: qty_spin.set(p)).pack(side=LEFT, padx=2)
+
+        def confirm_restock():
+            try:
+                add_qty = int(qty_spin.get())
+                if add_qty <= 0:
+                    messagebox.showerror("Invalid Input", "Added quantity must be greater than zero.")
+                    return
+
+                new_total = self.db.restock_product(sku, add_qty)
+                self._reload_inventory()
+                self._populate_inv_table(self.inventory)
+                modal.destroy()
+                messagebox.showinfo("Stock Updated", f"Restock intake successful!\n\nAdded: +{add_qty} units\nUpdated Stock for '{name}': {new_total} units.")
+            except ValueError:
+                messagebox.showerror("Error", "Please enter a valid numeric integer.")
+
+        tb.Button(box, text="Confirm Restock to Warehouse", bootstyle="success", command=confirm_restock).pack(fill=X)
 
     # =========================================================================
     # VIEW 3: PROFESSIONAL POS CASHIER TERMINAL
